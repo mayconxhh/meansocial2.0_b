@@ -9,7 +9,6 @@ const Follow = require('../models/follow');
 
 function SaveRequest(req, res){
   let params = req.body
-  console.log(params)
   let fRequest = new FRequest();
   fRequest.user = req.user.sub;
   fRequest.requested = params.requested;
@@ -116,7 +115,8 @@ function GetRequests(req, res){
                           .send({
                             success:true,
                             friends:fl.myfriendsAll,
-                            friends_solicited: fl.friends_solicited,
+                            friends_request: fl.friends_request,
+                            user_requested: fl.friends_solicited,
                             users_following: fl.following_clean,
                             users_followed: fl.followed_clean,
                             requests,
@@ -147,6 +147,11 @@ async function FriendUserId(userId){
                             .select({ '_id': 0, '__v':0, 'user': 0 })
                             .exec()
 
+    let friendsRequest = await FRequest
+                            .find({ requested: userId })
+                            .select({ '_id': 0, '__v':0, 'requested': 0})
+                            .exec()
+
     let myfriends = await Friend
                             .find({ user: userId })
                             .select({ '_id': 0, '__v':0, 'user': 0 })
@@ -154,6 +159,7 @@ async function FriendUserId(userId){
 
     let following_clean = [];
     let friends_solicited = [];
+    let friends_request = [];
     let followed_clean = [];
     let myfriendsAll = [];
 
@@ -163,6 +169,10 @@ async function FriendUserId(userId){
 
     followed.forEach((follow)=>{
       followed_clean.push(follow.user);
+    })
+
+    friendsRequest.forEach((requests)=>{
+      friends_request.push(requests.user);
     })
 
     myAddFriends.forEach((request)=>{
@@ -177,7 +187,8 @@ async function FriendUserId(userId){
       following_clean,
       followed_clean,
       myfriendsAll,
-      friends_solicited
+      friends_solicited,
+      friends_request
     }
 
   } catch(err){

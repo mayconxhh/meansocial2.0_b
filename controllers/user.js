@@ -7,6 +7,8 @@ const path  = require('path');
 const User = require('../models/user');
 const Follow = require('../models/follow');
 const Publication = require('../models/publication');
+const Friend = require('../models/friend');
+const FriendRequest = require('../models/friendRequest');
 const jwt = require('../services/jwt');
 
 function Home( req, res ){
@@ -283,8 +285,11 @@ function GetUsers(req, res){
 									success: true,
 									total,
 									users,
-									users_following: fl.following_clean,
-									users_followed: fl.followed_clean,
+									friends:fl.myfriendsAll,
+                  friends_request: fl.friends_request,
+                  users_following: fl.following_clean,
+                  user_requested: fl.friends_solicited,
+                  users_followed: fl.followed_clean,
 									pages: Math.ceil(total/itemForPage)
 								});				
 			})
@@ -295,37 +300,76 @@ function GetUsers(req, res){
 
 async function FollowUserId(userId){
 
-	try{
 
-		let following = await Follow
-														.find({ user: userId })
-														.select({ '_id': 0, '__v':0, 'user': 0 })
-														.exec();
+  try{
 
-		let followed = await Follow
-														.find({ followed: userId })
-														.select({ '_id': 0, '__v':0, 'followed': 0 })
-														.exec();
+    let following = await Follow
+                            .find({ user: userId })
+                            .select({ '_id': 0, '__v':0, 'user': 0 })
+                            .exec();
 
-		let following_clean = [];
-		let followed_clean = [];
+    let followed = await Follow
+                            .find({ followed: userId })
+                            .select({ '_id': 0, '__v':0, 'followed': 0 })
+                            .exec();
 
-		following.forEach((follow)=>{
-			following_clean.push(follow.followed);
-		})
+    let myAddFriends = await FriendRequest
+                            .find({ user: userId })
+                            .select({ '_id': 0, '__v':0, 'user': 0 })
+                            .exec()
 
-		followed.forEach((follow)=>{
-			followed_clean.push(follow.user);
-		})
+    let friendsRequest = await FriendRequest
+                            .find({ requested: userId })
+                            .select({ '_id': 0, '__v':0, 'requested': 0})
+                            .exec()
 
-		return {
-			following_clean,
-			followed_clean
-		}
+    let myfriends = await Friend
+                            .find({ $or: [{ user: userId }, { friend: userId }]})
+                            .select({ '_id': 0, '__v':0 })
+                            .exec()
 
-	} catch(err){
-		throw err;
-	}
+    let following_clean = [];
+    let friends_solicited = [];
+    let friends_request = [];
+    let followed_clean = [];
+    let myfriendsAll = [];
+
+    following.forEach((follow)=>{
+      following_clean.push(follow.followed);
+    })
+
+    followed.forEach((follow)=>{
+      followed_clean.push(follow.user);
+    })
+
+    friendsRequest.forEach((requests)=>{
+      friends_request.push(requests.user);
+    })
+
+    myAddFriends.forEach((request)=>{
+      friends_solicited.push(request.requested);
+    })
+
+    myfriends.forEach((friend)=>{
+      console.log(friend)
+      if (userId == friend.user) {
+        myfriendsAll.push(friend.friend);
+      }  else {
+        myfriendsAll.push(friend.user);
+      }
+    })
+
+    return {
+      following_clean,
+      followed_clean,
+      myfriendsAll,
+      friends_solicited,
+      friends_request
+    }
+
+  } catch(err){
+    throw err;
+  }
 
 }
 
