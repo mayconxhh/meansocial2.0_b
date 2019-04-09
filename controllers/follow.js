@@ -284,7 +284,6 @@ async function FollowUserId(userId){
     })
 
     myfriends.forEach((friend)=>{
-      console.log(friend)
       if (userId == friend.user) {
         myfriendsAll.push(friend.friend);
       }  else {

@@ -140,15 +140,17 @@ function GetFriends(req, res){
       })
 
       FriendUserId(req.user.sub)
-        .then(myFriends=>{
+        .then(fl=>{
           return res
                   .status(200)
                   .send({
                     success:true,
-                    friends,
-                    myFriends: myFriends.myfriendsAll,
-                    users_following: myFriends.following_clean,
-                    users_followed: myFriends.followed_clean,
+                    my_friends: friends,
+                    friends:fl.myfriendsAll,
+                    friends_request: fl.friends_request,
+                    users_following: fl.following_clean,
+                    user_requested: fl.friends_solicited,
+                    users_followed: fl.followed_clean,
                     total,
                     pages: Math.ceil(total/itemsForPage)
                   });          
@@ -170,6 +172,16 @@ async function FriendUserId(userId){
                             .select({ '_id': 0, '__v':0, 'followed': 0 })
                             .exec();
 
+    let myAddFriends = await FRequest
+                            .find({ user: userId })
+                            .select({ '_id': 0, '__v':0, 'user': 0 })
+                            .exec()
+
+    let friendsRequest = await FRequest
+                            .find({ requested: userId })
+                            .select({ '_id': 0, '__v':0, 'requested': 0})
+                            .exec()
+
     let myfriends = await Friend
                             .find({ $or: [{ user: userId }, { friend: userId }]})
                             .select({ '_id': 0, '__v':0 })
@@ -177,6 +189,8 @@ async function FriendUserId(userId){
 
     let following_clean = [];
     let followed_clean = [];
+    let friends_solicited = [];
+    let friends_request = [];
     let myfriendsAll = [];
 
     following.forEach((follow)=>{
@@ -185,6 +199,14 @@ async function FriendUserId(userId){
 
     followed.forEach((follow)=>{
       followed_clean.push(follow.user);
+    })
+
+    friendsRequest.forEach((requests)=>{
+      friends_request.push(requests.user);
+    })
+
+    myAddFriends.forEach((request)=>{
+      friends_solicited.push(request.requested);
     })
 
     myfriends.forEach((friend)=>{
@@ -198,6 +220,8 @@ async function FriendUserId(userId){
     return {
       myfriendsAll,
       following_clean,
+      friends_solicited,
+      friends_request,
       followed_clean
     }
 

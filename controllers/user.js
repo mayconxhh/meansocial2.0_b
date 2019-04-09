@@ -230,10 +230,23 @@ async function FollowThisUser( identity_userId, userId ) {
 		let followed = await Follow
 											.findOne({ user: userId, followed: identity_userId })
 											.exec();
+    let requested = await FriendRequest
+                            .findOne({ user: userId, requested: identity_userId })
+                            .exec()
+
+    let request = await FriendRequest
+                            .findOne({ requested: userId, user: identity_userId })
+                            .exec()
+		let friend = await Friend
+                            .findOne({ $or: [{ user: userId, friend: identity_userId }, { friend: userId, user: identity_userId }]})
+                            .exec()
 
 		return {
 			following: following,
-			followed: followed 
+			followed: followed,
+			friend: friend,
+			requested: requested,
+			request: request
 		}
 	} catch(err){
 		throw err;
@@ -416,10 +429,15 @@ async function GetCountFollow(userId){
 																	.countDocuments({ user: userId})
 																	.exec();
 
+		let friends = await Friend
+																	.countDocuments({ $or: [{ user: userId }, { friend: userId }]})
+																	.exec();
+
 		return {
 			following: following,
 			followed: followed,
-			publications: publications
+			publications: publications,
+			friends: friends
 		}
 
 	} catch(err){
