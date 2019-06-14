@@ -4,6 +4,10 @@ const path = require('path');
 const fs = require('fs');
 const moment = require('moment');
 const mongoosePagination = require('mongoose-pagination');
+const {
+  CloudinaryImage,
+  DeleteImage
+} = require('../helpers/cloudinary');
 
 const Publication = require('../models/publication');
 const User = require('../models/user');
@@ -313,115 +317,139 @@ function DeletePublication(req, res){
 }
 
 function UploadImage(req, res){
+  CloudinaryImage(req, res, 'file')
+    .then(function(data){
+      const req  = data.req;
+      const res = data.res;
 
-  let publicationId = req.params.id;
-  let userId = req.user.sub;
+      console.log(req)
 
-  if ( req.files.file ) {
+      let publicationId = req.params.id;
+      let userId = req.user.sub;
 
-    let filePath = req.files.file.path;
-    let fileSplit = filePath.split('\\');
-    let fileName = fileSplit[2];
-    let extSplit = fileName.split('\.');
-    let fileExt = extSplit[1];
+      // if ( req.files.file ) {
+      if ( req.file ) {
 
-    if ( fileExt === 'png' || fileExt === 'jpg' || fileExt === 'jpeg' || fileExt === 'gif' ) {
-      
-      Publication
-        .findById( publicationId )
-        .exec((err, publication)=>{
+        let filePath = req.file.public_id;
+        // let fileSplit = filePath.split('\\');
+        let fileName = req.file.secure_url;
+        // let extSplit = fileName.split('\.');
+        let fileExt = req.file.format;
 
-          if (err) {
-            return res
-                      .status(500)
-                      .send({
-                        success: false,
-                        message: 'Error en la petición.',
-                        err: err
-                      });
-          }
-
-          if (!publication) {
-            return res
-                    .status(404)
-                    .send({
-                      success: false,
-                      message: 'No se encontró la publicación.',
-                      err: err
-                    });
-          }
+        if ( fileExt === 'png' || fileExt === 'jpg' || fileExt === 'jpeg' || fileExt === 'gif' ) {
           
-          if ( userId != publication.user ) {
-            let message = 'No tienes los permisos necesarios.';
-            return RemoveFileUpload( res, filePath, message );
-          }
-
           Publication
-              .findByIdAndUpdate( publicationId, { file: fileName }, { new: true })
-              .exec((err, publication)=>{
+            .findById( publicationId )
+            .exec((err, publication)=>{
 
-                if (err) {
-                  return res
-                            .status(500)
-                            .send({
-                              success: false,
-                              message: 'Error en la petición de actualizacion.',
-                              err: err
-                            });
-                }
-
-                if (!publication) {
-                  return res
-                          .status(404)
+              if (err) {
+                return res
+                          .status(500)
                           .send({
                             success: false,
-                            message: 'La publicación no se pudo actualizar.',
+                            message: 'Error en la petición.',
                             err: err
                           });
-                }
-                console.log(publication)
+              }
+
+              if (!publication) {
                 return res
-                        .status(200)
+                        .status(404)
                         .send({
-                          success: true,
-                          message: 'El usuario se ha actualizado.',
-                          publication
+                          success: false,
+                          message: 'No se encontró la publicación.',
+                          err: err
                         });
-              });
+              }
+              
+              if ( userId != publication.user ) {
+                let message = 'No tienes los permisos necesarios.';
+                return RemoveFileUpload( res, filePath, message );
+              }
 
-        })
+              Publication
+                  .findByIdAndUpdate( publicationId, { file: fileName }, { new: true })
+                  .exec((err, publication)=>{
 
-    } else {
+                    if (err) {
+                      return res
+                                .status(500)
+                                .send({
+                                  success: false,
+                                  message: 'Error en la petición de actualizacion.',
+                                  err: err
+                                });
+                    }
 
-      let message = 'Extensión no válida.';
-      RemoveFileUpload( res, filePath, message );
+                    if (!publication) {
+                      return res
+                              .status(404)
+                              .send({
+                                success: false,
+                                message: 'La publicación no se pudo actualizar.',
+                                err: err
+                              });
+                    }
+                    console.log(publication)
+                    return res
+                            .status(200)
+                            .send({
+                              success: true,
+                              message: 'El usuario se ha actualizado.',
+                              publication
+                            });
+                  });
 
-    }
+            })
 
-  } else {
+        } else {
 
-    return res
-            .status(200)
-            .send({
-              success: false,
-              message: 'No se ha subido archivos.'
-            });
+          let message = 'Extensión no válida.';
+          RemoveFileUpload( res, filePath, message );
 
-  }
+        }
+
+      } else {
+
+        return res
+                .status(200)
+                .send({
+                  success: false,
+                  message: 'No se ha subido archivos.'
+                });
+
+      }
+      
+    })
+
 
 }
 
+// function RemoveFileUpload(res, filePath, message){
+//   fs.unlink( filePath, err=>{
+
+//     return res
+//             .status(500)
+//             .send({
+//               success: false,
+//               message: message
+//             });
+
+//   })
+// }
+
 function RemoveFileUpload(res, filePath, message){
-  fs.unlink( filePath, err=>{
-
+  DeleteImage(filePath).then(function(result){
+    console.log(result);
     return res
-            .status(500)
-            .send({
-              success: false,
-              message: message
-            });
-
-  })
+        .status(500)
+        .send({
+          success: false,
+          message: message
+        });
+  }, function(err){
+    console.log(err);
+  });
 }
 
 function GetImageFile(req, res){

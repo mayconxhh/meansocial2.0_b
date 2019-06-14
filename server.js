@@ -7,7 +7,7 @@ var PORT = 5000;
 
 // CONECTION DATABASE
 mongoose.Promise = global.Promise;
-mongoose.connect('mongodb://localhost:27017/mean_social',
+mongoose.connect('',
 	{
 		useCreateIndex: true,
 		useNewUrlParser: true,

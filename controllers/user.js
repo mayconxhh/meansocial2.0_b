@@ -10,6 +10,10 @@ const Publication = require('../models/publication');
 const Friend = require('../models/friend');
 const FriendRequest = require('../models/friendRequest');
 const jwt = require('../services/jwt');
+const {
+	CloudinaryImage,
+	DeleteImage
+} = require('../helpers/cloudinary');
 
 function Home( req, res ){
 	res
@@ -533,96 +537,116 @@ function UpdateUser(req, res){
 }
 
 function UploadImage(req, res){
+	CloudinaryImage(req, res, 'image')
+		.then(function(data){
+			const req  = data.req;
+      const res = data.res;
 
-	let userId = req.params.id;
+			let userId = req.params.id;
 
-	if ( req.files.image ) {
+			// if ( req.files.image ) {
+			if ( req.file ) {
 
-		let filePath = req.files.image.path;
-		let fileSplit = filePath.split('\\');
-		let fileName = fileSplit[2];
-		let extSplit = fileName.split('\.');
-		let fileExt = extSplit[1];
+				let filePath = req.file.public_id;
+				// let fileSplit = filePath.split('\\');
+				let fileName = req.file.secure_url;
+				// let extSplit = fileName.split('\.');
+				let fileExt = req.file.format;
 
-		console.log( req.params.id )
-		console.log( req.user.sub )
+				console.log( userId )
+				console.log( req.user.sub )
 
-		if ( userId !== req.user.sub ) {
+				if ( userId !== req.user.sub ) {
 
-			let message = 'No tienes los permisos necesarios.';
-			return RemoveFileUpload( res, filePath, message );
+					let message = 'No tienes los permisos necesarios.';
+					return RemoveFileUpload( res, filePath, message );
 
-		}
+				}
 
 
-		if ( fileExt === 'png' || fileExt === 'jpg' || fileExt === 'jpeg' || fileExt === 'gif' ) {
-			
-			User
-				.findByIdAndUpdate( userId, { image: fileName }, { new: true } )
-				.select('email name lastname image nick role _id ')
-				.exec((err, user)=>{
+				if ( fileExt === 'png' || fileExt === 'jpg' || fileExt === 'jpeg' || fileExt === 'gif' ) {
+					
+					User
+						.findByIdAndUpdate( userId, { image: fileName }, { new: true } )
+						.select('email name lastname image nick role _id ')
+						.exec((err, user)=>{
 
-					if (err) {
-						return res
-											.status(500)
+							if (err) {
+								return res
+													.status(500)
+													.send({
+														success: false,
+														message: 'Error en la petición.',
+														err: err
+													});
+							}
+
+							if (!user) {
+								return res
+												.status(404)
+												.send({
+													success: false,
+													message: 'El usuario no se ha podido actualizar.',
+													err: err
+												});
+							}
+
+							return res
+											.status(200)
 											.send({
-												success: false,
-												message: 'Error en la petición.',
-												err: err
+												success: true,
+												message: 'El usuario se ha actualizado.',
+												user
 											});
-					}
 
-					if (!user) {
-						return res
-										.status(404)
-										.send({
-											success: false,
-											message: 'El usuario no se ha podido actualizar.',
-											err: err
-										});
-					}
+						})
 
-					return res
-									.status(200)
-									.send({
-										success: true,
-										message: 'El usuario se ha actualizado.',
-										user
-									});
+				} else {
 
-				})
+					let message = 'Extensión no válida.';
+					RemoveFileUpload( res, filePath, message );
 
-		} else {
+				}
 
-			let message = 'Extensión no válida.';
-			RemoveFileUpload( res, filePath, message );
+			} else {
 
-		}
+				return res
+								.status(200)
+								.send({
+									success: false,
+									message: 'No se ha subido archivos.'
+								});
 
-	} else {
-
-		return res
-						.status(200)
-						.send({
-							success: false,
-							message: 'No se ha subido archivos.'
-						});
-
-	}
+			}
+		})
 
 }
 
-function RemoveFileUpload(res, filePath, message){
-	fs.unlink( filePath, err=>{
+// function RemoveFileUpload(res, filePath, message){
+// 	fs.unlink( filePath, err=>{
 
+
+// 		return res
+// 				.status(500)
+// 				.send({
+// 					success: false,
+// 					message: message
+// 				});
+// 	})
+// }
+
+function RemoveFileUpload(res, filePath, message){
+	DeleteImage(filePath).then(function(result){
+		console.log(result);
 		return res
 				.status(500)
 				.send({
 					success: false,
 					message: message
 				});
-
-	})
+	}, function(err){
+		console.log(err);
+	});
 }
 
 function GetImageFile(req, res){

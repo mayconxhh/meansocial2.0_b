@@ -3,6 +3,14 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const morgan = require('morgan');
+const cloudinary = require('cloudinary')
+
+//CLOUDINARY CONFIGURATION 
+cloudinary.config({
+  cloud_name: '', 
+  api_key: '', 
+  api_secret: ''
+});
 
 const app = express();
 
